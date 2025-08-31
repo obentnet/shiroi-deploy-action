@@ -1,6 +1,7 @@
 name: Build and Deploy
 
 on:
+  workflow_dispatch: #增加了工作流的手动运行
   push:
     branches:
       - main
@@ -16,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PNPM_VERSION: 9.x.x
   HASH_FILE: build_hash
 
 jobs:
@@ -45,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: innei-dev/shiroi
+          repository: innei-dev/shiroi #填写你需要访问的仓库，如开源版为innei/shiro
           token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
           fetch-depth: 0
           lfs: true
@@ -74,14 +76,14 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/*]
+        node-version: [20.x]
     outputs:
       sha_short: ${{ steps.store.outputs.sha_short }}
       branch: ${{ steps.store.outputs.branch }}
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: innei-dev/shiroi
+          repository: innei-dev/shiroi #填写你需要访问的仓库，如开源版为innei/shiro
           token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
           fetch-depth: 0
           lfs: true
@@ -89,7 +91,8 @@ jobs:
       - name: Checkout LFS objects
         run: git lfs checkout
       - uses: pnpm/action-setup@v2
-
+        with:
+          version: ${{ env.PNPM_VERSION }}
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
@@ -164,10 +167,13 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           key: ${{ secrets.KEY }}
           port: ${{ secrets.PORT }}
+          #script_stop: true 移除了改行指令，因为该指令已经停止使用了会提示但不影响，不改也行
           script: |
             set -e
-            source $HOME/.bashrc
-            basedir=$HOME/shiro
+            export NVM_DIR=~/.nvm #定义.nvm的安装目录，否则终端运行时明明安装了但找不到命令
+            source ~/.nvm/nvm.sh #识别nvm命令，否则可能会报command not found
+            source $HOME/.bashrc 
+            basedir=$HOME/mx-space/shiro #填写你自己希望的路径，因为我的后端文件在mx-space下，所以我希望我的shiro也在mx-space文件夹下，方便管理
             workdir=$basedir/${{ github.run_number }}
             mkdir -p $workdir
             mkdir -p $basedir/.cache
@@ -176,7 +182,7 @@ jobs:
             cd $workdir
             unzip -qq -o $workdir/release.zip
             rm -rf $workdir/standalone/.env
-            ln -s $HOME/shiro/.env $workdir/standalone/.env
+            ln -s $HOME/mx-space/shiro/.env $workdir/standalone/.env #你的.env文件路径，我存放在mx-space/shiro文件夹内，方便管理
             export NEXT_SHARP_PATH=$(npm root -g)/sharp
             # copy workdir ecosystem.config.js to basedir if not exists
             if [ ! -f $basedir/ecosystem.config.js ]; then
